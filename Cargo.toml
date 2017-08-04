@@ -1,0 +1,8 @@
+[package]
+name = "hn-stub"
+version = "0.1.0"
+authors = ["Ryan Davis <me@rdavis.xyz>"]
+
+[dependencies]
+rocket = "0.3.0"
+rocket_codegen = "0.3.0"
