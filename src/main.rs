@@ -6,6 +6,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate rocket_contrib;
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -17,29 +18,33 @@ fn read_json_from_file<P: AsRef<Path>>(path: P) -> Result<Json<Value>, Box<Error
     Ok(Json(json))
 }
 
-fn read_resource_from_file<P: AsRef<Path>>(path: P, resource: &str) -> Option<Json<Value>> {
-    read_json_from_file(path)
-        .ok()
-        .and_then(|d| d.get(resource).map(Clone::clone))
-        .map(Json)
-}
-
 mod routes {
+    use std::collections::HashMap;
+    use rocket::State;
     use rocket_contrib::{Json, Value};
 
+    type Responses = HashMap<String, Json<Value>>;
+
     #[get("/firebase/<resource>")]
-    fn firebase(resource: String) -> Option<Json<Value>> {
-        ::read_resource_from_file("./data/firebase.json", &resource)
+    fn firebase(resource: String, map: State<Responses>) -> Option<Json<Value>> {
+        map.get("firebase")
+            .map(|data| Json(data[&resource].clone()))
     }
 
     #[get("/algolia/<resource>")]
-    fn algolia(resource: String) -> Option<Json<Value>> {
-        ::read_resource_from_file("./data/algolia.json", &resource)
+    fn algolia(resource: String, map: State<Responses>) -> Option<Json<Value>> {
+        map.get("algolia").map(|data| Json(data[&resource].clone()))
     }
 }
 
 fn main() {
+    let mut data = HashMap::<String, Json<Value>>::new();
+    let firebase = read_json_from_file("./data/firebase.json").expect("Firebase data should exist");
+    let algolia = read_json_from_file("./data/algolia.json").expect("Algolia data should exist");
+    data.insert("firebase".to_owned(), firebase);
+    data.insert("algolia".to_owned(), algolia);
     rocket::ignite()
         .mount("/", routes![routes::firebase, routes::algolia])
+        .manage(data)
         .launch();
 }
